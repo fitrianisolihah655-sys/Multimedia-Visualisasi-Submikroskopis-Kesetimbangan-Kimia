@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChemEquilibrium - Tesis Multimedia Interaktif</title>
+    <style>
+        /* ========================================== */
+        /* CSS GABUNGAN: SIDEBAR + SIMULASI LENGKAP   */
+        /* ========================================== */
+        :root {
+            --bg-color: #f4f7f6;
+            --panel-bg: #ffffff;
+            --primary: #2563EB;
+            --secondary: #1F2937;
+            --accent: #3B82F6;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        body { background-color: var(--bg-color); color: var(--secondary); margin: 0; padding: 0; overflow: hidden; }
+        
+        /* PERBAIKAN LAYOUT UTAMA DI SINI */
+        .app-container { display: flex; width: 100vw; height: 100vh; }
+        
+        /* 1. LAYOUT SIDEBAR */
+        .sidebar { width: 250px; background: #FFF; border-right: 1px solid #E5E7EB; padding: 20px; display: flex; flex-direction: column; z-index: 100; box-shadow: 2px 0 5px rgba(0,0,0,0.05); flex-shrink: 0; }
+        .sidebar-header { margin-bottom: 30px; font-size: 22px; color: var(--primary); font-weight: bold; }
+        .nav-btn { display: block; width: 100%; padding: 12px; margin-bottom: 10px; background: none; border: none; text-align: left; cursor: pointer; border-radius: 8px; font-size: 15px; transition: 0.3s; color: #4B5563; }
+        .nav-btn:hover, .nav-btn.active { background: var(--primary); color: #FFF; }
+        
+        /* LAYOUT KONTEN UTAMA */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; background-color: var(--bg-color); }
+        .content-section { display: none; padding: 30px; animation: fadeIn 0.4s; height: 100%; flex-direction: column; }
+        .content-section.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* 2. KOMPONEN UMUM */
+        .card { background: var(--panel-bg); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #E5E7EB; padding: 25px; }
+        .btn { padding: 10px 20px; background: var(--primary); color: #FFF; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; transition: 0.3s; font-weight: bold; }
+        .btn:hover { background: #1D4ED8; }
+        .hidden { display: none !important; }
+
+        /* 3. LAYOUT SIMULASI (Khusus Menu Faktor) */
+        .sim-container { display: flex; flex: 1; gap: 15px; margin-bottom: 15px; min-height: 350px; }
+        .sim-panel { background: var(--panel-bg); border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex: 1; display: flex; flex-direction: column; padding: 15px; position: relative; border: 1px solid #E5E7EB; }
+        .sim-panel h2 { font-size: 1.1rem; margin-bottom: 15px; text-align: center; color: var(--secondary); border-bottom: 2px solid var(--accent); padding-bottom: 5px; }
+        
+        /* Visual Makroskopis */
+        .beaker-container { flex: 1; display: flex; justify-content: center; align-items: flex-end; padding-bottom: 10px; }
+        .beaker { width: 130px; height: 200px; border: 4px solid #bdc3c7; border-top: none; border-radius: 0 0 20px 20px; position: relative; overflow: hidden; background: linear-gradient(to right, rgba(255,255,255,0.2), rgba(255,255,255,0.5)); transition: height 0.3s ease; }
+        .gas-fill { width: 100%; height: 100%; transition: background-color 0.5s ease; }
+        
+        /* Visual Submikroskopis */
+        #canvas-container { flex: 1; position: relative; border: 2px solid #ecf0f1; border-radius: 8px; overflow: hidden; background-color: #050B14; }
+        canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+        #tooltip { position: absolute; background: rgba(255,255,255,0.9); color: #000; padding: 8px; border-radius: 4px; font-size: 12px; pointer-events: none; display: none; z-index: 20; border: 1px solid #ccc; }
+        
+        /* Visual Simbolik */
+        .symbolic-data { display: flex; flex-direction: column; gap: 10px; flex: 1; font-size: 14px; }
+        .equation { font-size: 1.4rem; text-align: center; font-weight: bold; margin-bottom: 10px; color: var(--primary); }
+        .data-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #eee; padding-bottom: 5px; }
+        .bar-container { display: flex; align-items: center; margin: 5px 0; }
+        .bar-label { width: 50px; font-weight: bold; }
+        .bar-track { flex: 1; height: 15px; background: #ecf0f1; border-radius: 10px; overflow: hidden; margin: 0 10px; }
+        .bar-fill { height: 100%; transition: width 0.3s ease; }
+        #bar-n2o4 { background-color: #3498db; }
+        #bar-no2 { background-color: #e67e22; }
+        
+        /* Panel Kontrol & Slider */
+        .controls-wrapper { background: var(--panel-bg); padding: 15px; border-radius: 10px; border: 1px solid #E5E7EB; display: flex; gap: 20px; align-items: flex-start; margin-top: auto;}
+        .sliders { display: flex; gap: 20px; flex: 2; }
+        .slider-group { flex: 1; display: flex; flex-direction: column; }
+        .slider-group label { margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
+        .slider-group input { cursor: pointer; }
+        .buttons { display: flex; gap: 10px; flex: 1; justify-content: flex-end; align-items: center; }
+        
+        .le-chatelier-box { flex: 2; background: #eff6ff; padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary); font-size: 0.9rem; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <aside class="sidebar">
+            <div class="sidebar-header">ChemEquilibrium</div>
+            <nav class="sidebar-menu">
+                <button class="nav-btn active" data-target="beranda">Beranda</button>
+                <button class="nav-btn" data-target="konsep">Konsep Dasar</button>
+                <button class="nav-btn" data-target="faktor">Faktor Pergeseran</button>
+                <button class="nav-btn" data-target="kckp">Tetapan Kc & Kp</button> 
+                <button class="nav-btn" data-target="latihan">Latihan Soal</button>
+            </nav>
+            </nav>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            
+            <section id="menu-beranda" class="content-section active">
+                <div class="card" style="font-size: 16px; line-height: 1.8; text-align: justify; max-width: 900px; margin: 0 auto; width: 100%;">
+                    <p>Selamat datang di ChemEquilibrium. Aplikasi multimedia pembelajaran interaktif ini dikembangkan untuk memfasilitasi pemahaman pada materi Kesetimbangan Kimia. Visualisasi yang digunakan dirancang secara spesifik untuk meningkatkan kemampuan translasi antar representasi kimia dan literasi digital peserta didik SMA.</p>
+                    <br>
+                    <p>Dalam pembelajaran kimia, seringkali terjadi kesulitan akibat tingginya beban kognitif saat harus menerjemahkan teks menjadi bayangan partikel tak kasat mata. Oleh karena itu, simulasi ini menerapkan prinsip kedekatan spasial dengan mengintegrasikan tiga level representasi secara simultan.</p>
+                    <br>
+                    <p>Silakan gunakan menu navigasi di sebelah kiri untuk mengeksplorasi simulasi interaktif asas Le Chatelier pada menu Faktor Pergeseran, dan mengakhiri sesi dengan melatih kemampuan translasi melalui latihan soal.</p>
+                </div>
+            </section>
+
+          <section id="menu-konsep" class="content-section">
+                <div class="card" style="max-width: 900px; margin: 0 auto; width: 100%;">
+                    <h2 style="color: var(--primary); margin-bottom: 10px; font-size: 28px;">Konsep Kesetimbangan Kimia</h2>
+                    <p style="font-size: 16px; color: #4B5563; margin-bottom: 25px; line-height: 1.6;">
+                        Pelajari konsep dasar Kesetimbangan Kimia melalui multimedia interaktif berbasis Canva yang menyajikan fenomena, konsep, visualisasi makroskopis, submikroskopis, simbolik, animasi, serta aktivitas pembelajaran secara bertahap.
+                    </p>
+
+                    <div style="background: #F3F4F6; padding: 25px; border-radius: 8px; margin-bottom: 25px;">
+                        <p style="margin-bottom: 15px; font-size: 16px;">Selamat datang pada menu Konsep Kesetimbangan Kimia. Pada bagian ini Anda akan mempelajari:</p>
+                        <ul style="margin-left: 20px; line-height: 1.8; color: #1F2937;">
+                            <li>Pengertian Kesetimbangan Kimia</li>
+                            <li>Reaksi Reversibel dan Irreversibel</li>
+                            <li>Kesetimbangan Dinamis</li>
+                            <li>Karakteristik Kesetimbangan</li>
+                            <li>Tetapan Kesetimbangan (Kc dan Kp)</li>
+                            <li>Hubungan Makroskopis, Submikroskopis, dan Simbolik</li>
+                            <li>Contoh Penerapan Kesetimbangan Kimia</li>
+                        </ul>
+                        <p style="margin-top: 15px; font-style: italic; color: #4B5563;">Seluruh materi disajikan secara interaktif melalui website pembelajaran yang telah disiapkan.</p>
+                    </div>
+
+                    <div style="background: #EFF6FF; border-left: 4px solid var(--primary); padding: 15px 20px; margin-bottom: 25px; border-radius: 0 8px 8px 0; line-height: 1.6; color: #1E3A8A;">
+                        Sebelum melanjutkan ke simulasi faktor-faktor yang memengaruhi kesetimbangan kimia, silakan pelajari terlebih dahulu seluruh materi konsep melalui multimedia interaktif berikut.
+                    </div>
+
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 25px;">
+                        <a href="https://equilibriumlabpart2.my.canva.site/" target="_blank" class="btn" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; padding: 14px 24px; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);">
+                            <span style="margin-right: 8px; font-size: 18px;">📘</span> Mulai Belajar Konsep Kesetimbangan
+                        </a>
+                        <button onclick="document.querySelector('[data-target=\'faktor\']').click()" class="btn" style="background: #10B981; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; padding: 14px 24px; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);">
+                            <span style="margin-right: 8px; font-size: 18px;">⚗</span> Lanjut ke Simulasi Faktor Kesetimbangan
+                        </button>
+                    </div>
+
+                    <div style="font-size: 14px; color: #6B7280; border-top: 1px solid #E5E7EB; padding-top: 15px;">
+                        🧪 <em>Materi konsep harus dipelajari terlebih dahulu sebelum melakukan simulasi dan mengerjakan latihan soal agar memperoleh pemahaman konseptual yang baik.</em>
+                    </div>
+                </div>
+            </section>
+
+<!-- MENU BARU: KC & KP -->
+            <section id="menu-kckp" class="content-section">
+                <div style="margin-bottom: 15px; font-weight: bold; font-size: 20px; color: var(--primary);">Hubungan 4 Representasi (Kc & Kp)</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; flex: 1;">
+                    
+                    <!-- Panel 1: Makroskopis -->
+                    <div class="sim-panel" style="align-items: center; justify-content: center;">
+                        <h2>Makroskopis</h2>
+                        <div id="kckp-macro" style="width: 140px; height: 140px; border-radius: 50%; border: 4px solid #CBD5E1; display: flex; align-items: center; justify-content: center; background-color: rgba(255,255,255,0.8); box-shadow: inset 0 0 20px rgba(0,0,0,0.1); transition: 0.5s;">Gas</div>
+                    </div>
+
+                    <!-- Panel 2: Submikroskopis -->
+                    <div class="sim-panel">
+                        <h2>Submikroskopis</h2>
+                        <div style="flex:1; position: relative; border: 2px solid #ecf0f1; border-radius: 8px; background: #fff; overflow:hidden; min-height: 150px;">
+                            <canvas id="kckp-canvas" style="width:100%; height:100%; display:block;"></canvas>
+                        </div>
+                        <div style="font-size: 12px; text-align: center; margin-top: 8px;">
+                            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#3B82F6; margin:0 5px;"></span> N₂O₄
+                            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#EF4444; margin:0 5px;"></span> NO₂
+                        </div>
+                    </div>
+
+                    <!-- Panel 3: Simbolik -->
+                    <div class="sim-panel" style="align-items: center; justify-content: center;">
+                        <h2>Simbolik</h2>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-bottom: 15px;">N₂O₄(g) ⇌ 2NO₂(g)</div>
+                        <div style="display: flex; align-items: center; font-size: 1.2rem;">
+                            Kc = <div style="display: flex; flex-direction: column; align-items: center; margin-left: 10px;">
+                                <span style="border-bottom: 2px solid #1F2937; padding: 0 5px;">[NO₂]²</span>
+                                <span style="padding: 0 5px;">[N₂O₄]</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 4: Kuantitatif & Kontrol -->
+                    <div class="sim-panel">
+                        <h2>Kuantitatif & Kontrol</h2>
+                        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px;">
+                            <div>
+                                <label style="font-weight:bold;">Suhu: <span id="kckp-temp-val">298</span> K</label>
+                                <input type="range" id="kckp-temp-slider" min="250" max="400" value="298" style="width:100%; cursor:pointer;">
+                            </div>
+                            <div>
+                                <label style="font-weight:bold;">Volume: <span id="kckp-vol-val">1.0</span> L</label>
+                                <input type="range" id="kckp-vol-slider" min="0.5" max="3.0" step="0.1" value="1.0" style="width:100%; cursor:pointer;">
+                            </div>
+                            <hr style="border: 0; border-top: 1px solid #eee; margin: 5px 0;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                                <div>[N₂O₄]: <span id="kckp-cn2o4">0.100</span> M</div>
+                                <div>[NO₂]: <span id="kckp-cno2">0.050</span> M</div>
+                                <div><strong>Q: <span id="kckp-q">0.025</span></strong></div>
+                                <div><strong>Kc: <span id="kckp-kc">0.150</span></strong></div>
+                            </div>
+                            <div id="kckp-status" style="margin-top: 5px; padding: 8px; background: #F59E0B; color: white; text-align: center; border-radius: 6px; font-size: 13px; font-weight: bold;">Menuju Kesetimbangan...</div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </section>          
+  <section id="menu-faktor" class="content-section">
+                <div style="margin-bottom: 15px; font-weight: bold; font-size: 20px; color: var(--primary);">Simulasi Interaktif: Asas Le Chatelier</div>
+                
+                <div class="sim-container">
+                    
+                    <div class="sim-panel">
+                        <h2>Makroskopis</h2>
+                        <div class="beaker-container">
+                            <div class="beaker" id="beaker">
+                                <div class="gas-fill" id="gasColor"></div>
+                            </div>
+                        </div>
+                        <div style="text-align: center; font-size: 0.85rem; color: #666; margin-top: 10px;">
+                            Warna Gas (Coklat = NO₂, Bening = N₂O₄)
+                        </div>
+                    </div>
+
+                    <div class="sim-panel">
+                        <h2>Submikroskopis</h2>
+                        <div id="canvas-container">
+                            <canvas id="simCanvas"></canvas>
+                            <div id="tooltip"></div>
+                        </div>
+                    </div>
+
+                    <div class="sim-panel">
+                        <h2>Simbolik</h2>
+                        <div class="symbolic-data">
+                            <div class="equation">N₂O₄(g) ⇌ 2NO₂(g)</div>
+                            <div class="data-row"><span>Molekul N₂O₄:</span> <strong id="val-n2o4">0</strong></div>
+                            <div class="data-row"><span>Molekul NO₂:</span> <strong id="val-no2">0</strong></div>
+                            <div class="data-row"><span>Konsentrasi [N₂O₄]:</span> <strong><span id="val-cn2o4">0.0</span> M</strong></div>
+                            <div class="data-row"><span>Konsentrasi [NO₂]:</span> <strong><span id="val-cno2">0.0</span> M</strong></div>
+                            <div class="data-row"><span>Nilai K:</span> <strong id="val-k">0.0</strong></div>
+                            
+                            <div class="bar-chart" style="margin-top: auto;">
+                                <div class="bar-container">
+                                    <div class="bar-label">N₂O₄</div>
+                                    <div class="bar-track"><div class="bar-fill" id="bar-n2o4" style="width: 50%;"></div></div>
+                                </div>
+                                <div class="bar-container">
+                                    <div class="bar-label">NO₂</div>
+                                    <div class="bar-track"><div class="bar-fill" id="bar-no2" style="width: 50%;"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls-wrapper">
+                    <div class="sliders">
+                        <div class="slider-group">
+                            <label>Suhu (<span id="lbl-temp">300</span> K)</label>
+                            <input type="range" id="slider-temp" min="200" max="400" value="300">
+                        </div>
+                        <div class="slider-group">
+                            <label>Volume (<span id="lbl-vol">1.0</span> L)</label>
+                            <input type="range" id="slider-vol" min="0.5" max="2.0" step="0.1" value="1.0">
+                        </div>
+                        <div class="slider-group">
+                            <label>Tekanan (<span id="lbl-pres">1.0</span> atm)</label>
+                            <input type="range" id="slider-pres" min="0.5" max="2.0" step="0.1" value="1.0">
+                        </div>
+                    </div>
+                    
+                    <div class="le-chatelier-box" id="le-chatelier-text">
+                        Sistem berada dalam keadaan setimbang. Ubah suhu, volume, atau tekanan melalui slider di samping untuk mengamati pergeseran kesetimbangan.
+                    </div>
+
+                    <div class="buttons" style="flex-direction: column; align-items: stretch;">
+                        <button id="btn-play">Jeda Simulasi</button>
+                        <button id="btn-reset" style="background: #6B7280;">Reset</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="menu-latihan" class="content-section">
+                <div id="quiz-active-area" style="width: 100%; max-width: 800px; margin: 0 auto;">
+                    <div style="margin-bottom: 15px;">
+                        <span id="quiz-counter" style="font-weight: bold; color: var(--primary); font-size: 18px;">Soal 1</span>
+                    </div>
+                    
+                    <div class="card">
+                        <div id="q-text" style="font-size: 16px; margin-bottom: 25px; line-height: 1.6; font-weight: 500;">Memuat soal...</div>
+                        <div id="q-options" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                        
+                        <div id="feedback-box" class="hidden" style="margin-top: 25px; padding: 20px; border-radius: 8px; border: 1px solid #ccc;">
+                            <h4 id="feedback-title" style="margin-bottom: 10px; font-size: 16px;"></h4>
+                            <p id="feedback-text" style="line-height: 1.6; font-size: 15px; margin-bottom: 20px;"></p>
+                            <button id="btn-next-q" class="btn" style="background: #10B981; width: 100%;">Lanjut ke Soal Berikutnya</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="quiz-result-area" class="card hidden" style="padding: 50px; text-align: center; max-width: 800px; margin: 0 auto; width: 100%;">
+                    <h2>Latihan Selesai!</h2>
+                    <p style="color: #4B5563; margin-top: 10px;">Terima kasih telah menyelesaikan uji translasi representasi.</p>
+                    <div style="font-size: 70px; font-weight: bold; color: var(--primary); margin: 30px 0;" id="final-score">100</div>
+                    <button id="btn-restart-quiz" class="btn" style="padding: 12px 30px; font-size: 16px;">Ulangi Latihan</button>
+                </div>
+            </section>
+            
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            
+            // 1. DATA SOAL KUIS
+            const chemistryQuizData = [
+                {
+                    question: "Berdasarkan pengamatan makroskopis pada tabung simulasi, warna cokelat NO2 bertambah pekat saat suhu sistem dinaikkan. Bagaimana perilaku partikel submikroskopisnya?",
+                    options: [
+                        { text: "Molekul N2O4 pecah menjadi molekul NO2 secara masif akibat kenaikan energi kinetik.", isCorrect: true },
+                        { text: "Ukuran atom membesar karena suhu naik, menutupi ruang di dalam tabung.", isCorrect: false },
+                        { text: "Molekul saling menempel menjadi es.", isCorrect: false }
+                    ],
+                    explanation: "Pemanasan menggeser kesetimbangan ke arah reaksi endoterm. Pada level submikroskopis, energi kinetik meningkat menyebabkan frekuensi pemutusan ikatan N2O4 (bening) menjadi NO2 (cokelat) semakin tinggi."
+                },
+                {
+                    question: "Ketika kamu memperkecil volume tabung (meningkatkan tekanan), kesetimbangan bergeser ke arah mana dan mengapa?",
+                    options: [
+                        { text: "Bergeser ke arah NO2 karena butuh lebih banyak gas untuk menahan tekanan.", isCorrect: false },
+                        { text: "Bergeser ke arah N2O4 (kiri) karena memiliki jumlah koefisien gas yang lebih kecil.", isCorrect: true },
+                        { text: "Tidak terjadi pergeseran karena wujud zat semuanya adalah gas.", isCorrect: false }
+                    ],
+                    explanation: "Berdasarkan Asas Le Chatelier, peningkatan tekanan (penurunan volume) akan menggeser kesetimbangan ke arah zat yang memiliki jumlah mol (koefisien) gas lebih sedikit. Dalam hal ini, N2O4 memiliki koefisien 1, sedangkan NO2 memiliki koefisien 2."
+                }
+            ];
+
+            // 2. LOGIKA NAVIGASI SIDEBAR
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const sections = document.querySelectorAll('.content-section');
+
+            navButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    navButtons.forEach(b => b.classList.remove('active'));
+                    sections.forEach(s => s.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    const targetMenu = btn.dataset.target;
+                    document.getElementById(`menu-${targetMenu}`).classList.add('active');
+
+                    if(targetMenu === 'faktor') {
+                        setTimeout(resizeCanvas, 50);
+                    }
+                });
+            });
+
+            // 3. LOGIKA KANVAS SIMULASI 
+            const canvas = document.getElementById('simCanvas');
+            const ctx = canvas.getContext('2d');
+            const container = document.getElementById('canvas-container');
+            const tooltip = document.getElementById('tooltip');
+            
+            const sliderTemp = document.getElementById('slider-temp');
+            const sliderVol = document.getElementById('slider-vol');
+            const sliderPres = document.getElementById('slider-pres');
+            
+            const lblTemp = document.getElementById('lbl-temp');
+            const lblVol = document.getElementById('lbl-vol');
+            const lblPres = document.getElementById('lbl-pres');
+            
+            const gasColor = document.getElementById('gasColor');
+            const beaker = document.getElementById('beaker');
+            const lcText = document.getElementById('le-chatelier-text');
+
+            let isPlaying = true;
+            let animationId;
+            let molecules = [];
+            let state = { temp: 300, vol: 1.0, pres: 1.0 };
+            
+            function resizeCanvas() {
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            class Molecule {
+                constructor(type, x, y) {
+                    this.type = type; 
+                    this.x = x || Math.random() * (canvas.width - 40) + 20;
+                    this.y = y || Math.random() * (canvas.height - 40) + 20;
+                    this.setSpeed();
+                }
+
+                setSpeed() {
+                    const speedMult = Math.sqrt(state.temp / 300) * 1.5;
+                    const angle = Math.random() * Math.PI * 2;
+                    this.vx = Math.cos(angle) * speedMult;
+                    this.vy = Math.sin(angle) * speedMult;
+                }
+
+                update() {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    const boundX = canvas.width;
+                    const boundY = canvas.height * (state.vol / 2.0);
+
+                    if (this.x < 15) { this.x = 15; this.vx *= -1; }
+                    if (this.x > boundX - 15) { this.x = boundX - 15; this.vx *= -1; }
+                    if (this.y < canvas.height - boundY + 15) { this.y = canvas.height - boundY + 15; this.vy *= -1; }
+                    if (this.y > canvas.height - 15) { this.y = canvas.height - 15; this.vy *= -1; }
+                }
+
+                draw() {
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(Date.now() / 1500 + this.x);
+
+                    if (this.type === 'N2O4') {
+                        ctx.fillStyle = '#3B82F6';
+                        ctx.beginPath(); ctx.arc(-8, 0, 6, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(8, 0, 6, 0, Math.PI*2); ctx.fill();
+                        ctx.fillStyle = '#EF4444';
+                        ctx.beginPath(); ctx.arc(-16, -10, 5, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(-16, 10, 5, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(16, -10, 5, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(16, 10, 5, 0, Math.PI*2); ctx.fill();
+                        ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
+                        ctx.beginPath(); ctx.moveTo(-8,0); ctx.lineTo(8,0); ctx.stroke();
+                    } else {
+                        ctx.fillStyle = '#3B82F6';
+                        ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill();
+                        ctx.fillStyle = '#EF4444';
+                        ctx.beginPath(); ctx.arc(-10, -8, 5, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(10, -8, 5, 0, Math.PI*2); ctx.fill();
+                    }
+                    ctx.restore();
+                }
+            }
+
+            function initMolecules() {
+                molecules = [];
+                for(let i=0; i<15; i++) molecules.push(new Molecule('N2O4'));
+                for(let i=0; i<10; i++) molecules.push(new Molecule('NO2'));
+            }
+
+            function processReactions() {
+                const targetNO2Ratio = Math.min(0.9, Math.max(0.1, (state.temp - 150) / 300));
+                let n2o4Count = molecules.filter(m => m.type === 'N2O4').length;
+                let no2Count = molecules.filter(m => m.type === 'NO2').length;
+                let totalEquiv = n2o4Count + (no2Count / 2); 
+                let currentNO2Ratio = (no2Count / 2) / totalEquiv;
+
+                if (currentNO2Ratio < targetNO2Ratio && n2o4Count > 0) {
+                    if (Math.random() < 0.05) {
+                        const idx = molecules.findIndex(m => m.type === 'N2O4');
+                        const mol = molecules[idx];
+                        molecules.splice(idx, 1);
+                        molecules.push(new Molecule('NO2', mol.x - 10, mol.y));
+                        molecules.push(new Molecule('NO2', mol.x + 10, mol.y));
+                    }
+                } else if (currentNO2Ratio > targetNO2Ratio && no2Count > 1) {
+                    if (Math.random() < 0.05) {
+                        let idx1 = molecules.findIndex(m => m.type === 'NO2');
+                        let mol1 = molecules[idx1];
+                        molecules.splice(idx1, 1);
+                        let idx2 = molecules.findIndex(m => m.type === 'NO2');
+                        if (idx2 !== -1) {
+                            molecules.splice(idx2, 1);
+                            molecules.push(new Molecule('N2O4', mol1.x, mol1.y));
+                        } else {
+                            molecules.push(mol1); 
+                        }
+                    }
+                }
+            }
+
+            function updateSimUI() {
+                let n2o4Count = molecules.filter(m => m.type === 'N2O4').length;
+                let no2Count = molecules.filter(m => m.type === 'NO2').length;
+                
+                let brownIntensity = Math.min(1, no2Count / (n2o4Count * 2 + no2Count + 1));
+                gasColor.style.backgroundColor = `rgba(139, 69, 19, ${brownIntensity * 0.9})`;
+                beaker.style.height = `${(state.vol / 2.0) * 200}px`;
+
+                document.getElementById('val-n2o4').innerText = n2o4Count;
+                document.getElementById('val-no2').innerText = no2Count;
+                
+                let cN2O4 = (n2o4Count / state.vol).toFixed(2);
+                let cNO2 = (no2Count / state.vol).toFixed(2);
+                
+                document.getElementById('val-cn2o4').innerText = cN2O4;
+                document.getElementById('val-cno2').innerText = cNO2;
+                
+                let K = cN2O4 > 0 ? (Math.pow(cNO2, 2) / cN2O4).toFixed(3) : "∞";
+                document.getElementById('val-k').innerText = K;
+
+                let maxTotal = 40; 
+                document.getElementById('bar-n2o4').style.width = `${(n2o4Count / maxTotal) * 100}%`;
+                document.getElementById('bar-no2').style.width = `${(no2Count / maxTotal) * 100}%`;
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const boundY = canvas.height - (canvas.height * (state.vol / 2.0));
+                ctx.fillStyle = 'rgba(255,255,255,0.05)';
+                ctx.fillRect(0, 0, canvas.width, boundY);
+                ctx.beginPath(); ctx.moveTo(0, boundY); ctx.lineTo(canvas.width, boundY);
+                ctx.strokeStyle = '#7f8c8d'; ctx.lineWidth = 3; ctx.stroke();
+                
+                molecules.forEach(m => { m.update(); m.draw(); });
+                processReactions(); 
+                updateSimUI();
+
+                if (isPlaying) { animationId = requestAnimationFrame(animate); }
+            }
+
+            function triggerLeChatelier(trigger) {
+                if(trigger === 'temp') {
+                    if(state.temp > 300) lcText.innerHTML = "<b>Suhu dinaikkan:</b> Reaksi bersifat endotermik ke arah produk. Kesetimbangan bergeser ke kanan, menghasilkan lebih banyak NO₂ (gas menjadi coklat pekat).";
+                    else lcText.innerHTML = "<b>Suhu diturunkan:</b> Kesetimbangan bergeser ke kiri (eksotermik), menghasilkan lebih banyak N₂O₄ (gas memudar menjadi bening).";
+                } else if (trigger === 'vol') {
+                    if(state.vol > 1.0) lcText.innerHTML = "<b>Volume diperbesar:</b> Tekanan parsial turun. Kesetimbangan bergeser ke sisi dengan jumlah mol gas lebih banyak, yaitu ke arah gas NO₂.";
+                    else lcText.innerHTML = "<b>Volume diperkecil:</b> Tekanan naik. Kesetimbangan bergeser ke sisi dengan jumlah mol gas lebih sedikit, yaitu ke arah N₂O₄.";
+                } else if (trigger === 'pres') {
+                    state.vol = 1 / (state.pres / 1.0);
+                    sliderVol.value = state.vol.toFixed(1);
+                    lblVol.innerText = state.vol.toFixed(1);
+                    if(state.pres > 1.0) lcText.innerHTML = "<b>Tekanan dinaikkan:</b> Volume menyusut. Kesetimbangan bergeser ke arah jumlah koefisien gas yang lebih kecil (N₂O₄).";
+                    else lcText.innerHTML = "<b>Tekanan diturunkan:</b> Volume melebar. Kesetimbangan bergeser ke arah jumlah koefisien gas yang lebih besar (NO₂).";
+                }
+                molecules.forEach(m => m.setSpeed());
+            }
+
+            sliderTemp.addEventListener('input', (e) => { state.temp = e.target.value; lblTemp.innerText = state.temp; triggerLeChatelier('temp'); });
+            sliderVol.addEventListener('input', (e) => { state.vol = parseFloat(e.target.value); lblVol.innerText = state.vol; triggerLeChatelier('vol'); });
+            sliderPres.addEventListener('input', (e) => { state.pres = parseFloat(e.target.value); lblPres.innerText = state.pres; triggerLeChatelier('pres'); });
+
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                let hovered = molecules.find(m => Math.hypot(m.x - x, m.y - y) < 15);
+                if (hovered) {
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = `${e.clientX + 15}px`;
+                    tooltip.style.top = `${e.clientY + 15}px`;
+                    if(hovered.type === 'N2O4') tooltip.innerHTML = "<b>Dinitrogen Tetroksida</b><br>Rumus: N₂O₄ (Bening)";
+                    else tooltip.innerHTML = "<b>Nitrogen Dioksida</b><br>Rumus: NO₂ (Cokelat)";
+                } else {
+                    tooltip.style.display = 'none';
+                }
+            });
+            canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+
+            document.getElementById('btn-play').addEventListener('click', (e) => {
+                isPlaying = !isPlaying;
+                e.target.innerText = isPlaying ? "Jeda Simulasi" : "Lanjutkan Simulasi";
+                if (isPlaying) animate();
+            });
+
+            document.getElementById('btn-reset').addEventListener('click', () => {
+                state = { temp: 300, vol: 1.0, pres: 1.0 };
+                sliderTemp.value = 300; lblTemp.innerText = 300;
+                sliderVol.value = 1.0; lblVol.innerText = 1.0;
+                sliderPres.value = 1.0; lblPres.innerText = 1.0;
+                lcText.innerHTML = "Sistem dikembalikan ke keadaan awal.";
+                initMolecules();
+            });
+
+            initMolecules();
+            animate();
+
+            // 4. LOGIKA KUIS (CTML)
+            let currentQIndex = 0;
+            let score = 0;
+
+            function loadQuiz() {
+                if(currentQIndex >= chemistryQuizData.length) {
+                    document.getElementById('quiz-active-area').classList.add('hidden');
+                    document.getElementById('quiz-result-area').classList.remove('hidden');
+                    document.getElementById('final-score').innerText = Math.round(score);
+                    return;
+                }
+
+                const q = chemistryQuizData[currentQIndex];
+                document.getElementById('quiz-counter').innerText = `Soal ${currentQIndex + 1} dari ${chemistryQuizData.length}`;
+                document.getElementById('q-text').innerText = q.question;
+                
+                const optionsDiv = document.getElementById('q-options');
+                const feedbackBox = document.getElementById('feedback-box');
+                
+                optionsDiv.innerHTML = '';
+                feedbackBox.classList.add('hidden');
+                
+                q.options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.innerText = opt.text;
+                    btn.style.cssText = "padding: 15px; text-align: left; background: #FFF; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; transition: 0.3s; font-size: 15px;";
+                    
+                    btn.onclick = () => {
+                        const allBtns = optionsDiv.querySelectorAll('button');
+                        allBtns.forEach(b => b.disabled = true);
+
+                        if(opt.isCorrect) {
+                            btn.style.background = "#D1FAE5"; 
+                            btn.style.borderColor = "#10B981";
+                            document.getElementById('feedback-title').innerText = "✅ Jawaban Kamu Benar!";
+                            document.getElementById('feedback-title').style.color = "#065F46";
+                            score += (100 / chemistryQuizData.length);
+                        } else {
+                            btn.style.background = "#FEE2E2"; 
+                            btn.style.borderColor = "#EF4444";
+                            document.getElementById('feedback-title').innerText = "❌ Jawaban Kamu Kurang Tepat";
+                            document.getElementById('feedback-title').style.color = "#991B1B";
+                            
+                            allBtns.forEach(b => {
+                                if(q.options.find(o => o.text === b.innerText).isCorrect) {
+                                    b.style.background = "#D1FAE5";
+                                    b.style.border = "2px solid #10B981";
+                                }
+                            });
+                        }
+
+                        document.getElementById('feedback-text').innerHTML = `<strong>Pembahasan:</strong> ${q.explanation}`;
+                        feedbackBox.classList.remove('hidden');
+                    };
+                    optionsDiv.appendChild(btn);
+                });
+            }
+
+            document.getElementById('btn-next-q').onclick = () => {
+                currentQIndex++;
+                loadQuiz();
+            };
+
+            document.getElementById('btn-restart-quiz').onclick = () => {
+                currentQIndex = 0;
+                score = 0;
+                document.getElementById('quiz-active-area').classList.remove('hidden');
+                document.getElementById('quiz-result-area').classList.add('hidden');
+                loadQuiz();
+            };
+
+            loadQuiz();
+        });
+// --- LOGIKA SIMULASI KHUSUS MENU KC & KP ---
+            (function() {
+                const canvas = document.getElementById('kckp-canvas');
+                const ctx = canvas.getContext('2d');
+                
+                let state = { temp: 298, volume: 1.0, moles_n2o4: 0.1, moles_no2: 0.05, Kc: 0.15, Qc: 0 };
+                let particles = [];
+                let targetN2O4 = 15;
+                let targetNO2 = 15;
+
+                function resizeCanvas() {
+                    if(canvas.parentElement) {
+                        canvas.width = canvas.parentElement.clientWidth;
+                        canvas.height = canvas.parentElement.clientHeight;
+                    }
+                }
+                window.addEventListener('resize', resizeCanvas);
+                
+                document.querySelector('[data-target="kckp"]').addEventListener('click', () => {
+                    setTimeout(resizeCanvas, 50);
+                });
+
+                class Particle {
+                    constructor(type) {
+                        this.type = type;
+                        this.x = Math.random() * (canvas.width || 200);
+                        this.y = Math.random() * (canvas.height || 150);
+                        this.vx = (Math.random() - 0.5) * (state.temp / 100);
+                        this.vy = (Math.random() - 0.5) * (state.temp / 100);
+                        this.radius = type === 'N2O4' ? 6 : 4;
+                        this.color = type === 'N2O4' ? '#3B82F6' : '#EF4444';
+                    }
+                    update() {
+                        let speedMult = state.temp / 298;
+                        this.x += this.vx * speedMult;
+                        this.y += this.vy * speedMult;
+                        if (this.x <= 0 || this.x >= canvas.width) this.vx *= -1;
+                        if (this.y <= 0 || this.y >= canvas.height) this.vy *= -1;
+                    }
+                    draw() {
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                        ctx.fillStyle = this.color;
+                        ctx.fill();
+                    }
+                }
+
+                function updateSystem() {
+                    state.Qc = Math.pow(state.moles_no2 / state.volume, 2) / (state.moles_n2o4 / state.volume);
+                    state.Kc = 0.15 * Math.exp((state.temp - 298) * 0.015);
+                    
+                    let c_n2o4 = state.moles_n2o4 / state.volume;
+                    let c_no2 = state.moles_no2 / state.volume;
+                    
+                    document.getElementById('kckp-cn2o4').innerText = c_n2o4.toFixed(3);
+                    document.getElementById('kckp-cno2').innerText = c_no2.toFixed(3);
+                    document.getElementById('kckp-q').innerText = state.Qc.toFixed(3);
+                    document.getElementById('kckp-kc').innerText = state.Kc.toFixed(3);
+
+                    let status = document.getElementById('kckp-status');
+                    if (Math.abs(state.Qc - state.Kc) < 0.01) {
+                        status.innerText = "Setimbang";
+                        status.style.background = "#10B981";
+                    } else {
+                        status.style.background = "#F59E0B";
+                        if (state.Qc > state.Kc) {
+                            status.innerText = "Bergeser ke Kiri (Reaktan)";
+                            shift(-0.002);
+                        } else {
+                            status.innerText = "Bergeser ke Kanan (Produk)";
+                            shift(0.002);
+                        }
+                    }
+
+                    let macro = document.getElementById('kckp-macro');
+                    macro.style.backgroundColor = `rgba(139, 69, 19, ${Math.min(1, c_no2 * 1.5)})`;
+
+                    targetN2O4 = Math.floor(c_n2o4 * 150);
+                    targetNO2 = Math.floor(c_no2 * 150);
+                }
+
+                function shift(amount) {
+                    if (state.moles_n2o4 - amount > 0 && state.moles_no2 + (2*amount) > 0) {
+                        state.moles_n2o4 -= amount;
+                        state.moles_no2 += (2 * amount);
+                    }
+                }
+
+                document.getElementById('kckp-temp-slider').addEventListener('input', (e) => {
+                    state.temp = parseInt(e.target.value);
+                    document.getElementById('kckp-temp-val').innerText = state.temp;
+                });
+                
+                document.getElementById('kckp-vol-slider').addEventListener('input', (e) => {
+                    state.volume = parseFloat(e.target.value);
+                    document.getElementById('kckp-vol-val').innerText = state.volume.toFixed(1);
+                });
+
+                setInterval(updateSystem, 100);
+
+                function animate() {
+                    if(!canvas.width) return requestAnimationFrame(animate);
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    let curN2O4 = particles.filter(p => p.type === 'N2O4').length;
+                    let curNO2 = particles.filter(p => p.type === 'NO2').length;
+                    
+                    if(Math.random() < 0.2) {
+                        if(curN2O4 < targetN2O4) particles.push(new Particle('N2O4'));
+                        else if(curN2O4 > targetN2O4) { let i = particles.findIndex(p=>p.type==='N2O4'); if(i>-1) particles.splice(i,1); }
+                        
+                        if(curNO2 < targetNO2) particles.push(new Particle('NO2'));
+                        else if(curNO2 > targetNO2) { let i = particles.findIndex(p=>p.type==='NO2'); if(i>-1) particles.splice(i,1); }
+                    }
+                    
+                    particles.forEach(p => { p.update(); p.draw(); });
+                    requestAnimationFrame(animate);
+                }
+                
+                animate();
+            })();    
+</script>
+</body>
+</html>
